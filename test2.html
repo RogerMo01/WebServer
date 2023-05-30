@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Contents</title>
+    <style>
+        /* Estilos para la tabla */
+        table {
+            width: 95%;
+            border-collapse: collapse;
+            border:1px solid black;
+            margin-left:auto;
+            margin-right:auto;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        tr:hover {
+            background-color: #ffffff;
+        }
+
+        th {
+            background-color: #3f7bdb;
+            color: rgb(255, 255, 255);
+        }
+    </style>
+</head>
+<body>
+    <h1>Explorer</h1>
+    <table>
+        <tr>
+            <th>Nombre</th>
+            <th>Edad</th>
+            <th>Ciudad</th>
+        </tr>
+        <tr onclick="sendRequest('John Doe')">
+            <td>John Doe</td>
+            <td>25</td>
+            <td>New York</td>
+        </tr>
+        <tr onclick="sendRequest('Jane Smith')">
+            <td>Jane Smith</td>
+            <td>30</td>
+            <td>London</td>
+        </tr>
+        <tr onclick="sendRequest('Mark Johnson')">
+            <td>Mark Johnson</td>
+            <td>35</td>
+            <td>Tokyo</td>
+        </tr>
+        <tr onclick="sendRequest('Sarah Williams')">
+            <td>Sarah Williams</td>
+            <td>28</td>
+            <td>Paris</td>
+        </tr>
+    </table>
+
+    <script>
+        function sendRequest(name) {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', 'http://localhost:3000', true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) 
+                {
+                    console.log('Solicitud enviada correctamente');
+                    console.log(xhr.responseText);
+                }
+                else console.log('Error en la solicitud');
+            };
+            var data = name.length.toString() + '\n' + name + '\n';
+            xhr.send(data);
+        }
+    </script>
+
+</body>
+</html>
