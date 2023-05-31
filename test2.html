@@ -61,7 +61,7 @@
     <script>
         function sendRequest(name) {
             var xhr = new XMLHttpRequest();
-            xhr.open('POST', 'http://localhost:3000', true);
+            xhr.open('GET', 'http://localhost:3000', true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) 
                 {
@@ -70,7 +70,7 @@
                 }
                 else console.log('Error en la solicitud');
             };
-            var data = name.length.toString() + '\n' + name + '\n';
+            var data = name + '\n';
             xhr.send(data);
         }
     </script>

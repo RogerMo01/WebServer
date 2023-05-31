@@ -12,7 +12,7 @@ void print_matrix(char** matrix, int len);
 void handle_client(int client_socket, char* ROOT, int PORT);
 char* build_html(int PORT, char** names, int filesCount);
 void getNames(const char* root, char** names, int* numNames);
-
+char* parseHttpRequest(const char* httpRequest);
 
 #define BUFFER_SIZE 1024
 #define RED_COLOR "\033[0;31m"
@@ -125,29 +125,58 @@ void handle_client(int client_socket, char* ROOT, int PORT)
             return; }
 
 
+        // Leer los datos enviados por el cliente
+        // ssize_t bytes_read;
+
+        // Buscar el final de los encabezados
+        // char* body_start = strstr(buffer, "\r\n\r\n");
+        // if (body_start != NULL) {
+        //     body_start += 4;  // Saltar los caracteres "\r\n\r\n"
+        //     // Aquí puedes procesar el cuerpo de la solicitud según tus necesidades
+        //     // En este ejemplo, simplemente imprimimos el cuerpo en el servidor
+        //     printf("Received request body from client:\n");
+        //     printf("%s\n", body_start);
+        // }
+
+        
+
 
         // Aquí puedes procesar los datos recibidos según el protocolo que estés utilizando
         // y enviar respuestas al cliente en consecuencia.
         // Puedes implementar el manejo de solicitudes HTTP u otro protocolo aquí.
 
-        if (strncmp(buffer, "POST", 4) == 0)
-        {
-            // // Obtener el cuerpo de la solicitud POST
-            // char* body_start = strstr(buffer, "\r\n\r\n");
-            // if (body_start != NULL)
-            // {
-            //     body_start += 4;  // Saltar los caracteres "\r\n\r\n"
-            //     // Aquí puedes procesar el cuerpo de la solicitud POST según tus necesidades
-            //     // En este ejemplo, simplemente imprimimos el cuerpo en el servidor
-                // 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
-                printf("Received POST data from client:\n");
-                printf("%s\n", buffer);
-            // }
-        }
-        else{
-            // En este ejemplo, simplemente imprimimos los datos recibidos en el servidor
-            printf("Received data, not POST, from client:\n");
-        }
+        // if (strncmp(buffer, "POST", 4) == 0)
+        // {
+        //     // Leer los datos enviados por el cliente
+        //     ssize_t bytes_read;
+
+        //     // Buscar el final de los encabezados
+        //     char* body_start = strstr(buffer, "\r\n\r\n");
+        //     if (body_start != NULL) {
+        //         body_start += 4;  // Saltar los caracteres "\r\n\r\n"
+        //         // Aquí puedes procesar el cuerpo de la solicitud según tus necesidades
+        //         // En este ejemplo, simplemente imprimimos el cuerpo en el servidor
+        //         printf("Received POST request body from client:\n");
+        //         // printf("%s\n", body_start);
+
+                printf("Buffer = \n%s", buffer);
+                printf("~~~~~~~~~~~~~ END_Buffer ~~~~~~~~~~~~~~");
+
+        //         char* value = parseHttpRequest(buffer);
+
+        //         printf("~~~~~~ Parsed = %s", value);
+
+
+        //     }
+
+        //         // 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
+        //         // printf("Received POST data from client:\n");
+        //         // printf("%s\n", buffer);
+        // }
+        // else{
+        //     // En este ejemplo, simplemente imprimimos los datos recibidos en el servidor
+        //     printf("Received data, not POST, from client:\n");
+        // }
 
 
 
@@ -215,6 +244,17 @@ void handle_client(int client_socket, char* ROOT, int PORT)
     // Cerrar la conexión con el cliente
     close(client_socket);
 }
+
+
+char* parseHttpRequest(const char* httpRequest) {
+    const char* delimiter = "\n";
+    char* token;
+    char* value = NULL;
+    
+    
+    return value;
+}
+
 
 
 void getNames(const char* root, char** names, int* numNames) {
@@ -298,6 +338,7 @@ char* build_html(int PORT, char** names, int filesCount)
             "</table>"
             "<script>"
                 "function sendRequest(name) {"
+
                     "var xhr = new XMLHttpRequest();"
                     "xhr.open('POST', 'http://localhost:");
     strcat(response, buff);
@@ -310,9 +351,9 @@ char* build_html(int PORT, char** names, int filesCount)
                         "}"
                         "else console.log('Error en la solicitud');"
                     "};"
-                    // "var data = 'name=' + encodeURIComponent(name);"
+                    "var data = 'name:' + encodeURIComponent(name) + '\\n';"
                     // 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
-                    "var data = name.length.toString() + '\\n' + name + '\\n';"
+                    // "var data = name.length.toString() + '\\n' + name + '\\n';"
                     "xhr.send(data);"
                 "}"
             "</script>"

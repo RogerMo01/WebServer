@@ -1,4 +1,53 @@
+
+
+
+
 <!DOCTYPE html>
+<html>
+<head>
+    <script>
+        function sendRequest() {
+            // Crear una nueva instancia de XMLHttpRequest
+            var xhr = new XMLHttpRequest();
+
+            // Configurar la solicitud POST al servidor
+            xhr.open('POST', 'http://localhost:PUERTO', true);
+
+            // Configurar el encabezado de la solicitud
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+            // Manejar la respuesta del servidor
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    console.log('Solicitud enviada correctamente');
+                    console.log(xhr.responseText);
+                } else {
+                    console.log('Error en la solicitud');
+                }
+            };
+
+            // Obtener los datos de entrada del usuario
+            var name = document.getElementById('name').value;
+
+            // Construir los datos de la solicitud
+            var data = 'name=' + encodeURIComponent(name);
+
+            // Enviar la solicitud al servidor
+            xhr.send(data);
+        }
+    </script>
+</head>
+<body>
+    <h1>Enviar solicitud al servidor</h1>
+    <input type="text" id="name" placeholder="Nombre">
+    <button onclick="sendRequest()">Enviar</button>
+</body>
+</html>
+
+
+
+
+<!-- <!DOCTYPE html>
 <html>
 <head>
     <title>Lista de elementos estilizada</title>
@@ -31,4 +80,4 @@
         <li>Elemento 5</li>
     </ul>
 </body>
-</html>
+</html> -->
