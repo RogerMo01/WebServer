@@ -9,14 +9,15 @@
 #include <sys/stat.h>
 #include <ctype.h>
 #include <time.h>
+#include <stdbool.h>
 
 // Predefined functions
-void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT);
+void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT, bool flag);
 char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, char** roots, int filesCount);
 void getNames(const char* root, char** names, int* numNames);
 char* parseHttpRequest(const char* httpRequest);
 void url_decode(char* str);
-void getProps(char** names, char** sizes, char** dates, char** types, char** roots, char* ROOTt, int count);
+void getProps(char** names, char** sizes, char** dates, char** types, char** roots, char* ROOTt, int count, bool flag);
 long long getDirectorySize(const char* directory);
 
 #define BUFFER_SIZE 1024
@@ -31,15 +32,21 @@ int main(int argc, char *argv[])
 {
     int PORT = atoi(argv[1]);
     char* ROOT = argv[2];
+    char* FLAG = argv[3];
+    
+    bool flag = (FLAG != NULL) && (strcmp(FLAG, "-s") == 0);
+
+    printf("flag = %d\n", flag);
+
 
     if(PORT == 0) { fprintf(stderr, RED_COLOR "Error: invalid Port\n" DEFAULT_COLOR); exit(1); }
     DIR* dir = opendir(argv[2]);
     if (dir == NULL) { fprintf(stderr, RED_COLOR "Error: invalid Directory Root\n" DEFAULT_COLOR); exit(1); }
     closedir(dir);
 
-    // printf("argc = %i\n", argc);
     printf(GREEN_COLOR"Port: %i\n"DEFAULT_COLOR, PORT);
     printf(GREEN_COLOR"Root: %s\n"DEFAULT_COLOR, ROOT);
+    printf(GREEN_COLOR"FLAG = %d\n"DEFAULT_COLOR, flag);
 
 
     int server_socket, client_socket;
@@ -79,7 +86,7 @@ int main(int argc, char *argv[])
     printf("WebServer is running on %s ...\n", host);
 
 
-    while (1)
+    while (true)
     {
         // Aceptar una nueva conexión de cliente
         client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &addr_len);
@@ -89,7 +96,7 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        printf("New connection accepted\n\n");
+        printf(YELLOW_COLOR"New connection accepted\n\n"DEFAULT_COLOR);
 
 
         // Manejar al cliente en un proceso hijo
@@ -101,7 +108,7 @@ int main(int argc, char *argv[])
             char ROOTcopy[128] = "";
             strcat(ROOTcopy, ROOT);
 
-            handle_client(client_socket, ROOTcopy, PORT, ROOT);
+            handle_client(client_socket, ROOTcopy, PORT, ROOT, flag);
             exit(0);
         }
 
@@ -114,7 +121,7 @@ int main(int argc, char *argv[])
 
 
 
-void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
+void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT, bool flag)
 {
     // Buffer para almacenar los datos recibidos
     char buffer[BUFFER_SIZE];
@@ -157,12 +164,10 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
             int type = 0;
             DIR* dir = opendir(tempRoot);
             if(dir) {
-                printf(YELLOW_COLOR"%s es una carpeta.\n"DEFAULT_COLOR, tempRoot);
                 type = 1;
                 closedir(dir);
             } 
             else{
-                printf(YELLOW_COLOR"%s es un archivo.\n"DEFAULT_COLOR, tempRoot);
                 type = 2;
             }
             printf(BLUE_COLOR"CURRENT ROOT: %s\n"DEFAULT_COLOR, tempRoot);
@@ -195,7 +200,7 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
                 char** types = (char**)malloc(filesCount * sizeof(char*));
                 char** roots = (char**)malloc(filesCount * sizeof(char*));
                 if (dates == NULL || sizes == NULL || types == NULL) { printf("Error: cannot assign memory\n"); exit(1); }
-                getProps(names, sizes, dates, types, roots, ROOT, filesCount);
+                getProps(names, sizes, dates, types, roots, ROOT, filesCount, flag);
                 
 
                 html_content = build_html(PORT, names, sizes, dates, types, roots, filesCount);
@@ -258,7 +263,8 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
         }
         
         
-        char response[4098];
+        
+        char response[8194];
         sprintf(response, "HTTP/1.1 200 OK\r\n"
                         "Content-Type: text/html; charset=UTF-8\r\n"
                         "Content-Length: %ld\r\n\r\n"
@@ -325,39 +331,30 @@ void getNames(const char* root, char** names, int* numNames) {
     closedir(dir);
 }
 
-void getProps(char** names, char** sizes, char** dates, char** types, char** roots, char* ROOT, int count)
+void getProps(char** names, char** sizes, char** dates, char** types, char** roots, char* ROOT, int count, bool flag)
 {
-    printf(RED_COLOR"Getting props ...\n"DEFAULT_COLOR);
-    printf("count = %d\n", count);
-
     for (int i = 0; i < count; i++)
     {
         char tempRoot[128] = "";
         strcat(tempRoot, ROOT);
         strcat(tempRoot, "/");
         strcat(tempRoot, names[i]);
-        printf("name: %s\n", names[i]);
-        printf("in root: %s\n", tempRoot);
-
         
         struct stat file_info;
 
         if (stat(tempRoot, &file_info) == 0) 
         {
-            printf(RED_COLOR"Entro al IF\n"DEFAULT_COLOR);
             char tempBuff[50];
             
             // Tamaño del archivo en bytes
             sprintf(tempBuff, "%ld", file_info.st_size);
             strcat(tempBuff, " bytes");
             sizes[i] = strdup(tempBuff); 
-            printf("sizes[%d]:%s\n", i, sizes[i]);
             tempBuff[0] = '\0';
             
             // Fecha y hora de la última modificación
             strftime(tempBuff, sizeof(tempBuff), "%Y-%m-%d %H:%M:%S", localtime(&file_info.st_mtime));
             dates[i] = strdup(tempBuff); 
-            printf("dates[%d]:%s\n", i, dates[i]);
 
             // Ruta actual
             roots[i] = strdup(tempRoot);
@@ -366,17 +363,16 @@ void getProps(char** names, char** sizes, char** dates, char** types, char** roo
             if (S_ISREG(file_info.st_mode)) {
                 types[i] = strdup("File");
             } else if (S_ISDIR(file_info.st_mode)) {
+
                 types[i] = strdup("Directory");
-                
-                long long totalSize = getDirectorySize(tempRoot);
-
-
-                sprintf(tempBuff, "%lld", totalSize);
-                strcat(tempBuff, " bytes");
-                sizes[i] = strdup(tempBuff); 
-                printf("sizes[%d]:%s\n", i, sizes[i]);
-                tempBuff[0] = '\0';
-                
+                if(flag)
+                {   
+                    long long totalSize = getDirectorySize(tempRoot);
+                    sprintf(tempBuff, "%lld", totalSize);
+                    strcat(tempBuff, " bytes");
+                    sizes[i] = strdup(tempBuff); 
+                    tempBuff[0] = '\0';
+                }
 
             } else if (S_ISLNK(file_info.st_mode)) {
                 types[i] = strdup("File");
@@ -389,7 +385,6 @@ void getProps(char** names, char** sizes, char** dates, char** types, char** roo
             } else if (S_ISSOCK(file_info.st_mode)) {
                 types[i] = strdup("File");
             } else {
-                printf("Tipo de archivo: Desconocido\n");
                 types[i] = strdup("Unknown");
             }
 
@@ -401,7 +396,7 @@ void getProps(char** names, char** sizes, char** dates, char** types, char** roo
 
 char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, char** roots, int filesCount)
 {
-    char* response = malloc(4096);
+    char* response = malloc(8000);
     char buff[4]; 
     sprintf(buff, "%d", PORT);
 
