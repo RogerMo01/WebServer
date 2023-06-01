@@ -222,7 +222,7 @@ void handle_client(int client_socket, char* ROOT, int PORT)
 
 
         // Construir la respuesta HTTP (código de estado 200 OK)
-        char response[1024];
+        char response[4098];
         sprintf(response, "HTTP/1.1 200 OK\r\n"
                         "Content-Type: text/html\r\n"
                         "Content-Length: %ld\r\n\r\n"

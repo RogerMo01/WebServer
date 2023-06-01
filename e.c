@@ -6,10 +6,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <dirent.h>
+#include <sys/stat.h>
 
 // Predefined functions
 void print_matrix(char** matrix, int len);
-void handle_client(int client_socket, char* ROOT, int PORT);
+void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT);
 char* build_html(int PORT, char** names, int filesCount);
 void getNames(const char* root, char** names, int* numNames);
 char* parseHttpRequest(const char* httpRequest);
@@ -88,7 +89,9 @@ int main(int argc, char *argv[])
         if (fork() == 0)
         {
             close(server_socket);
-            handle_client(client_socket, ROOT, PORT);
+            char ROOTcopy[128] = "";
+            strcat(ROOTcopy, ROOT);
+            handle_client(client_socket, ROOTcopy, PORT, ROOT);
             exit(0);
         }
 
@@ -104,7 +107,7 @@ int main(int argc, char *argv[])
 
 
 
-void handle_client(int client_socket, char* ROOT, int PORT)
+void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
 {
     // Buffer para almacenar los datos recibidos
     char buffer[BUFFER_SIZE];
@@ -113,22 +116,180 @@ void handle_client(int client_socket, char* ROOT, int PORT)
     ssize_t bytes_read;
     while ((bytes_read = recv(client_socket, buffer, BUFFER_SIZE, 0)) > 0)
     {
+        char* html_content = malloc(4096);
         
-        // Analizar los datos de la solicitud
-        // Aquí puedes implementar la lógica para extraer la información de la solicitud, como el método, la ruta, los encabezados, los parámetros GET, etc.
-
         // Imprimir los datos de la solicitud en la consola
         printf("Solicitud recibida:\n%s\n", buffer);
 
-        // Enviar una respuesta al cliente
-        const char* response = "HTTP/1.1 200 OK\r\n"
-                               "Content-Type: text/html\r\n"
-                               "\r\n"
-                               "<html><body><h1>Respuesta del servidor</h1></body></html>";
+
+        // Obtener el método HTTP (GET, POST, etc.)
+        char method[10];
+        sscanf(buffer, "%s", method);
+        printf("method = %s\n", method);
+
+        // Obtener la ruta de la solicitud
+        char path[BUFFER_SIZE];
+        sscanf(buffer, "%*s %s", path);
+        printf("path = %s\n", path);
+
+        printf("la root es: %s\n", ROOT);
+
+
+
+        printf("ROOT[strlen(ROOT) - 1] = %c\n",ROOT[strlen(ROOT) - 1]);
+        if(ROOT[strlen(ROOT) - 1] == '/') ROOT[strlen(ROOT) - 1] = '\0';
+        printf("ROOT[strlen(ROOT) - 1] = %c\n",ROOT[strlen(ROOT) - 1]);
+
+
+
+        if(strcmp(method, "GET") == 0 && strcmp(path, "/favicon.ico") != 0)
+        {
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GET case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            
+            // Obtener los parámetros GET (si los hay)
+            char* query_string = strchr(path, '?');
+            if (query_string != NULL)
+            {
+                // Avanzar el puntero para omitir el signo de interrogación
+                query_string++;
+
+                // Procesar los pares clave-valor de los parámetros GET
+                char* token = strtok(query_string, "&");
+                while (token != NULL)
+                {
+                    // Dividir el parámetro en clave y valor
+                    char key[BUFFER_SIZE];
+                    char value[BUFFER_SIZE];
+                    sscanf(token, "%[^=]=%s", key, value);
+
+                    // Realizar la lógica deseada con los parámetros GET
+
+                    // Avanzar al siguiente parámetro
+                    token = strtok(NULL, "&");
+                }
+            }
+            printf("query_string = %s\n\n", query_string);
+
+
+
+            // Determinate if new path is a Folder or file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            char tempRoot[128] = "";
+            strcat(tempRoot, baseROOT);
+            strcat(tempRoot, path);
+
+            printf("Mientras ROOT = %s, tempRoot = %s\n", ROOT, tempRoot);
+
+            // Folder = 1
+            // File = 2
+            int type = 0;
+            DIR* dir = opendir(tempRoot);
+            if(dir) {
+                printf(RED_COLOR"%s es una carpeta.\n"DEFAULT_COLOR, tempRoot);
+                type = 1;
+                closedir(dir);
+            } 
+            else{
+                printf(RED_COLOR"%s es un archivo.\n"DEFAULT_COLOR, tempRoot);
+                type = 2;
+            }
+            tempRoot[0] = '\0';
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+            // if(is folder)
+            if(type == 1)
+            {
+                // concatenar path a ROOT
+                strcat(ROOT, path);
+                printf("la NEW root es: %s\n", ROOT);
+
+
+                // Abrir el directorio y obtener el número de archivos y carpetas
+                DIR* dir = opendir(ROOT);
+                if (dir == NULL) { printf("No se pudo abrir el directorio %s\n", ROOT); exit(1); }
+                int filesCount = 0;
+                struct dirent* ent;
+                while ((ent = readdir(dir)) != NULL) { if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) filesCount++; }
+                // Crear un array para almacenar los nombres
+                char** names = (char**)malloc(filesCount * sizeof(char*));
+                if (names == NULL) { printf("Error al asignar memoria\n"); exit(1); }
+                // Obtener los nombres de los archivos y carpetas
+                getNames(ROOT, names, &filesCount);
+
+
+                html_content = build_html(PORT, names, filesCount);
+            }
+            else if (type == 2)//if(is File)
+            {
+                // poner un '\0' en la posicion total - len del path
+                printf("Cuando es un file:\n");
+                printf("ROOT = %s, baseROOT = %s, y path = %s\n", ROOT, baseROOT, path);
+
+                // 🚨🚨🚨🚨  Aquí lo que hacer con un archivo  🚨🚨🚨🚨
+                // Construir la ruta completa del archivo
+                char file_path[128] = "";
+                strcpy(file_path, baseROOT);
+                strcat(file_path, path);
+
+                // Abrir el archivo en modo de lectura binaria
+                FILE* file = fopen(file_path, "rb");
+                if (file == NULL)
+                {
+                    // El archivo no existe o no se puede abrir
+                    // Envía una respuesta de error al cliente
+                    char error_response[128];
+                    sprintf(error_response, "HTTP/1.1 404 Not Found\r\n"
+                                            "Content-Length: %d\r\n\r\n"
+                                            "File not found or cannot be opened", 32);
+                    send(client_socket, error_response, strlen(error_response), 0);
+                }
+                else 
+                {
+                    // Obtener el tamaño del archivo
+                    fseek(file, 0, SEEK_END);
+                    long file_size = ftell(file);
+                    fseek(file, 0, SEEK_SET);
+
+                    // Leer el contenido del archivo en un búfer
+                    char* file_buffer = malloc(file_size);
+                    fread(file_buffer, file_size, 1, file);
+                    
+
+                    // Construir la respuesta HTTP con el contenido del archivo
+                    char response[4096];
+                    sprintf(response, "HTTP/1.1 200 OK\r\n"
+                                    "Content-Type: application/octet-stream; charset=UTF-8\r\n"
+                                    "Content-Disposition: attachment; filename=\"%s\"\r\n"
+                                    "Content-Length: %ld\r\n\r\n", path, file_size);
+                    send(client_socket, response, strlen(response), 0);
+
+                    // Enviar el contenido del archivo al cliente
+                    send(client_socket, file_buffer, file_size, 0);
+
+                    // Liberar memoria y cerrar el archivo
+                    free(file_buffer);
+                    fclose(file);
+
+                    continue;
+                }
+
+            }
+        
+        } 
+        else if(strcmp(method, "POST") == 0)
+        {
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ POST case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        }
+        
+        
+        char response[4098];
+        sprintf(response, "HTTP/1.1 200 OK\r\n"
+                        "Content-Type: text/html; charset=UTF-8\r\n"
+                        "Content-Length: %ld\r\n\r\n"
+                        "%s", strlen(html_content), html_content);
+
 
         send(client_socket, response, strlen(response), 0);
-
-        
     }
 
 
@@ -176,27 +337,43 @@ char* build_html(int PORT, char** names, int filesCount)
     strcat(response, "<!DOCTYPE html>"
             "<html>"
             "<head>"
-                // "<style>"
-                //    "table {"
-                //        "width: 95\%;"
-                //         "border-collapse: collapse;"
-                //         "border:1px solid black;"
-                //         "margin-left:auto;"
-                //         "margin-right:auto;"
-                //     "}"
-                //     "th, td {"
-                //         "padding: 8px;"
-                //         "text-align: left;"
-                //         "border-bottom: 1px solid #ddd;"
-                //     "}"
-                //     "tr:hover {"
-                //         "background-color: #ffffff;"
-                //     "}"
-                //     "th {"
-                //         "background-color: #3f7bdb;"
-                //         "color: rgb(255, 255, 255);"
-                //     "}"
-                // "</style>"
+                "<style>"
+                    "table {"
+                        "border-collapse: collapse;"
+                        "width: 95%;"
+                        "font-family: Arial, sans-serif;"
+                        "border-radius: 8px;"
+                        "overflow: hidden;"
+                    "}"
+
+                    "th, td {"
+                        "padding: 8px;"
+                        "text-align: left;"
+                        "border-bottom: 1px solid #ddd;"
+                    "}"
+
+                    "th {"
+                        "background-color: #ababab;"
+                    "}"
+
+                    "tr:nth-child(even) {"
+                        "background-color: #f9f9f9;"
+                   "}"
+
+                    "tr:hover {"
+                        "background-color: #eaeaea;"
+                        "cursor: pointer;"
+                    "}"
+
+                    "td:first-child {"
+                        "border-left: 1px solid #ddd;"
+                    "}"
+
+                    "td:last-child {"
+                        "border-right: 1px solid #ddd;"
+                    "}"
+                "</style>"
+
             "</head>"
             "<body>"
                 "<h1>Explorer</h1>"
@@ -214,29 +391,15 @@ char* build_html(int PORT, char** names, int filesCount)
         strcat(response, names[i]);
         strcat(response, "<td></tr>");
     }
-
     strcat(response, 
                 "</table>"
                 "<script>"
                     "function sendRequest(name) {"
-
-                        "var xhr = new XMLHttpRequest();"
-                        "xhr.open('GET', 'http://localhost:");
-        strcat(response, buff);
-        strcat(response, "', true);"
-                            "xhr.onreadystatechange = function() {"
-                            "if (xhr.readyState === 4 && xhr.status === 200)"
-                            "{"
-                            "    console.log('Solicitud enviada correctamente');"
-                            "    console.log(xhr.responseText);"
-                            "}"
-                            "else console.log('Error en la solicitud');"
-                        "};"
-                        // "var data = encodeURIComponent(name) + '\\r\\n';"
-                        // 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
-                        // "var data = name.length.toString() + '\\n' + name + '\\n\\n';"
-                        "var data = '{' + name.length.toString() + '*' + name + '}\\n\\n';"
-                        "xhr.send(data);"
+                        "var current = window.location.href;"
+                        "console.log(current);"
+                        "if(current[current.length-1] == '/')"
+                        "{ window.location.href = current + name; }"
+                        "else window.location.href = current + '/' + name;"
                     "}"
                 "</script>"
             "</body>"
