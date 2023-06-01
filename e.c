@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <ctype.h>
 
 // Predefined functions
 void print_matrix(char** matrix, int len);
@@ -14,6 +15,7 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT);
 char* build_html(int PORT, char** names, int filesCount);
 void getNames(const char* root, char** names, int* numNames);
 char* parseHttpRequest(const char* httpRequest);
+void url_decode(char* str);
 
 
 #define BUFFER_SIZE 1024
@@ -130,8 +132,14 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
         // Obtener la ruta de la solicitud
         char path[BUFFER_SIZE];
         sscanf(buffer, "%*s %s", path);
-        printf("path = %s\n", path);
 
+        // Decodificar la ruta de la solicitud
+        url_decode(path);
+
+
+
+
+        printf("path = %s\n", path);
         printf("la root es: %s\n", ROOT);
 
 
@@ -177,7 +185,7 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
             strcat(tempRoot, baseROOT);
             strcat(tempRoot, path);
 
-            printf("Mientras ROOT = %s, tempRoot = %s\n", ROOT, tempRoot);
+            printf("Mientras ROOT = %s, tempRoot = %s, y path = %s\n", ROOT, tempRoot, path);
 
             // Folder = 1
             // File = 2
@@ -200,6 +208,8 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
             if(type == 1)
             {
                 // concatenar path a ROOT
+                ROOT[0] = '\0';
+                strcpy(ROOT, baseROOT);
                 strcat(ROOT, path);
                 printf("la NEW root es: %s\n", ROOT);
 
@@ -225,7 +235,6 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
                 printf("Cuando es un file:\n");
                 printf("ROOT = %s, baseROOT = %s, y path = %s\n", ROOT, baseROOT, path);
 
-                // 🚨🚨🚨🚨  Aquí lo que hacer con un archivo  🚨🚨🚨🚨
                 // Construir la ruta completa del archivo
                 char file_path[128] = "";
                 strcpy(file_path, baseROOT);
@@ -297,6 +306,33 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
     close(client_socket);
 }
 
+
+void url_decode(char* str)
+{
+    char* p = str;
+    char hex[3] = {0};
+    while (*str)
+    {
+        if (*str == '%' && isxdigit((unsigned char)*(str + 1)) && isxdigit((unsigned char)*(str + 2)))
+        {
+            hex[0] = *(str + 1);
+            hex[1] = *(str + 2);
+            *p = strtol(hex, NULL, 16);
+            str += 2;
+        }
+        else if (*str == '+')
+        {
+            *p = ' ';
+        }
+        else
+        {
+            *p = *str;
+        }
+        str++;
+        p++;
+    }
+    *p = '\0';
+}
 
 
 void getNames(const char* root, char** names, int* numNames) {
