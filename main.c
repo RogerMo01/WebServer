@@ -6,17 +6,24 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <dirent.h>
+#include <sys/stat.h>
+#include <ctype.h>
 
 // Predefined functions
 void print_matrix(char** matrix, int len);
-void handle_client(int client_socket, char* ROOT, int PORT);
+void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT);
 char* build_html(int PORT, char** names, int filesCount);
 void getNames(const char* root, char** names, int* numNames);
 char* parseHttpRequest(const char* httpRequest);
+void url_decode(char* str);
+
 
 #define BUFFER_SIZE 1024
 #define RED_COLOR "\033[0;31m"
 #define DEFAULT_COLOR "\033[0m"
+#define BLUE_COLOR "\033[0;34m"
+#define YELLOW_COLOR "\033[0;33m"
+#define GREEN_COLOR "\033[0;32m"
 
 
 int main(int argc, char *argv[])
@@ -30,8 +37,8 @@ int main(int argc, char *argv[])
     closedir(dir);
 
     // printf("argc = %i\n", argc);
-    printf("Port = %i\n", PORT);
-    printf("Root = %s\n", ROOT);
+    printf(GREEN_COLOR"Port: %i\n"DEFAULT_COLOR, PORT);
+    printf(GREEN_COLOR"Root: %s\n"DEFAULT_COLOR, ROOT);
 
 
     int server_socket, client_socket;
@@ -66,10 +73,11 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    printf("WebServer is running...\n");
+    char host[25] = "http://localhost:";
+    strcat(host, argv[1]);
+    printf("WebServer is running on %s ...\n", host);
 
 
-    // Listen loop
     while (1)
     {
         // Aceptar una nueva conexión de cliente
@@ -80,14 +88,19 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        printf("New connection accepted\n");
+        printf("New connection accepted\n\n");
 
 
         // Manejar al cliente en un proceso hijo
         if (fork() == 0)
         {
             close(server_socket);
-            handle_client(client_socket, ROOT, PORT);
+
+            // create copy of ROOT
+            char ROOTcopy[128] = "";
+            strcat(ROOTcopy, ROOT);
+
+            handle_client(client_socket, ROOTcopy, PORT, ROOT);
             exit(0);
         }
 
@@ -95,167 +108,182 @@ int main(int argc, char *argv[])
     }
     
     close(server_socket);
-
-
-
     return 0;
 }
 
 
-void handle_client(int client_socket, char* ROOT, int PORT)
+
+void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
 {
     // Buffer para almacenar los datos recibidos
     char buffer[BUFFER_SIZE];
 
     // Leer los datos enviados por el cliente
-    ssize_t bytes_read ;
-
-    char* html_content = "<!DOCTYPE html>""<html>""<head></head><body></body></html>";
-
-    while (bytes_read = recv(client_socket, buffer, BUFFER_SIZE, 0) > 0)
+    ssize_t bytes_read;
+    while ((bytes_read = recv(client_socket, buffer, BUFFER_SIZE, 0)) > 0)
     {
-        // Verificar si hubo un error en la lectura
-        if (bytes_read < 0)
-        {   fprintf(stderr, RED_COLOR "Error: recv error\n" DEFAULT_COLOR);
-            close(client_socket);
-            return; }
-        // Verificar si la lectura ha terminado (bytes_read == 0 indica fin de conexión)
-        if (bytes_read == 0)
-        {   close(client_socket);
-            return; }
-
-
-        // Leer los datos enviados por el cliente
-        // ssize_t bytes_read;
-
-        // Buscar el final de los encabezados
-        // char* body_start = strstr(buffer, "\r\n\r\n");
-        // if (body_start != NULL) {
-        //     body_start += 4;  // Saltar los caracteres "\r\n\r\n"
-        //     // Aquí puedes procesar el cuerpo de la solicitud según tus necesidades
-        //     // En este ejemplo, simplemente imprimimos el cuerpo en el servidor
-        //     printf("Received request body from client:\n");
-        //     printf("%s\n", body_start);
-        // }
-
+        char* html_content = malloc(4096);
         
+        // Imprimir los datos de la solicitud
+        printf("Recived query:\n%s\n", buffer);
+
+        // Obtener el método HTTP
+        char method[10];
+        sscanf(buffer, "%s", method);
+
+        // Obtener la ruta de la solicitud
+        char path[BUFFER_SIZE];
+        sscanf(buffer, "%*s %s", path);
+
+        // Decodificar la ruta de la solicitud
+        url_decode(path);
+
+        // Si la ruta ya termina en '/' quitarlo
+        if(ROOT[strlen(ROOT) - 1] == '/') ROOT[strlen(ROOT) - 1] = '\0';
 
 
-        // Aquí puedes procesar los datos recibidos según el protocolo que estés utilizando
-        // y enviar respuestas al cliente en consecuencia.
-        // Puedes implementar el manejo de solicitudes HTTP u otro protocolo aquí.
+        if(strcmp(method, "GET") == 0 && strcmp(path, "/favicon.ico") != 0)
+        {
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GET case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        // if (strncmp(buffer, "POST", 4) == 0)
-        // {
-        //     // Leer los datos enviados por el cliente
-        //     ssize_t bytes_read;
+            // Determinar si el path corresponde a una carpeta o un archivo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            char tempRoot[128] = "";
+            strcat(tempRoot, baseROOT);
+            strcat(tempRoot, path);
 
-        //     // Buscar el final de los encabezados
-        //     char* body_start = strstr(buffer, "\r\n\r\n");
-        //     if (body_start != NULL) {
-        //         body_start += 4;  // Saltar los caracteres "\r\n\r\n"
-        //         // Aquí puedes procesar el cuerpo de la solicitud según tus necesidades
-        //         // En este ejemplo, simplemente imprimimos el cuerpo en el servidor
-        //         printf("Received POST request body from client:\n");
-        //         // printf("%s\n", body_start);
-
-                printf("Buffer = \n%s", buffer);
-                printf("~~~~~~~~~~~~~ END_Buffer ~~~~~~~~~~~~~~");
-
-        //         char* value = parseHttpRequest(buffer);
-
-        //         printf("~~~~~~ Parsed = %s", value);
-
-
-        //     }
-
-        //         // 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
-        //         // printf("Received POST data from client:\n");
-        //         // printf("%s\n", buffer);
-        // }
-        // else{
-        //     // En este ejemplo, simplemente imprimimos los datos recibidos en el servidor
-        //     printf("Received data, not POST, from client:\n");
-        // }
-
-
-
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        // Abrir el directorio y obtener el número de archivos y carpetas
-        DIR* dir = opendir(ROOT);
-        if (dir == NULL) {
-            printf("No se pudo abrir el directorio %s\n", ROOT);
-            exit(1);
-        }
-        int filesCount = 0;
-        struct dirent* ent;
-        while ((ent = readdir(dir)) != NULL) {
-            if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
-                filesCount++;
+            // Folder = 1
+            // File = 2
+            int type = 0;
+            DIR* dir = opendir(tempRoot);
+            if(dir) {
+                printf(YELLOW_COLOR"%s es una carpeta.\n"DEFAULT_COLOR, tempRoot);
+                type = 1;
+                closedir(dir);
+            } 
+            else{
+                printf(YELLOW_COLOR"%s es un archivo.\n"DEFAULT_COLOR, tempRoot);
+                type = 2;
             }
+            printf(BLUE_COLOR"CURRENT ROOT: %s\n"DEFAULT_COLOR, tempRoot);
+            tempRoot[0] = '\0';
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+            if(type == 1) // is Folder
+            {
+                // concatenar path a baseROOT
+                ROOT[0] = '\0';
+                strcpy(ROOT, baseROOT);
+                strcat(ROOT, path);
+
+                // Abrir el directorio y obtener el número de archivos y carpetas
+                DIR* dir = opendir(ROOT);
+                if (dir == NULL) { printf("Cannot open directory: %s\n", ROOT); exit(1); }
+                int filesCount = 0;
+                struct dirent* ent;
+                while ((ent = readdir(dir)) != NULL) { if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) filesCount++; }
+                // Crear un array para almacenar los nombres
+                char** names = (char**)malloc(filesCount * sizeof(char*));
+                if (names == NULL) { printf("Error: cannot assign memory\n"); exit(1); }
+                // Obtener los nombres de los archivos y carpetas
+                getNames(ROOT, names, &filesCount);
+
+
+                html_content = build_html(PORT, names, filesCount);
+            }
+            else if (type == 2) // is File
+            {
+                // Construir la ruta completa del archivo
+                char file_path[128] = "";
+                strcpy(file_path, baseROOT);
+                strcat(file_path, path);
+
+                // Abrir el archivo en modo de lectura binaria
+                FILE* file = fopen(file_path, "rb");
+                if (file == NULL)
+                {
+                    // El archivo no existe o no se puede abrir
+                    // Envía una respuesta de error al cliente
+                    char error_response[128];
+                    sprintf(error_response, "HTTP/1.1 404 Not Found\r\n"
+                                            "Content-Length: %d\r\n\r\n"
+                                            "File not found or cannot be opened", 32);
+                    send(client_socket, error_response, strlen(error_response), 0);
+                }
+                else 
+                {
+                    // Obtener el tamaño del archivo
+                    fseek(file, 0, SEEK_END);
+                    long file_size = ftell(file);
+                    fseek(file, 0, SEEK_SET);
+
+                    // Leer el contenido del archivo en un búfer
+                    char* file_buffer = malloc(file_size);
+                    fread(file_buffer, file_size, 1, file);
+                    
+
+                    // Construir la respuesta HTTP con el contenido del archivo
+                    char response[4096];
+                    sprintf(response, "HTTP/1.1 200 OK\r\n"
+                                    "Content-Type: application/octet-stream; charset=UTF-8\r\n"
+                                    "Content-Disposition: attachment; filename=\"%s\"\r\n"
+                                    "Content-Length: %ld\r\n\r\n", path, file_size);
+                    send(client_socket, response, strlen(response), 0);
+
+                    // Enviar el contenido del archivo al cliente
+                    send(client_socket, file_buffer, file_size, 0);
+
+                    // Liberar memoria y cerrar el archivo
+                    free(file_buffer);
+                    fclose(file);
+
+                    continue;
+                }
+            }
+        
+        } 
+        else if(strcmp(method, "POST") == 0)
+        {
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ POST case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         }
-        // Crear un array para almacenar los nombres
-        char** names = (char**)malloc(filesCount * sizeof(char*));
-        if (names == NULL) {
-            printf("Error al asignar memoria\n");
-            exit(1);
-        }
-
-        // Obtener los nombres de los archivos y carpetas
-        getNames(ROOT, names, &filesCount);
-
-        // Imprimir los nombres
-        // printf("Archivos y carpetas en el directorio %s:\n", ROOT);
-        // for (int i = 0; i < numArchivos; i++) {
-        //     printf("%s\n", names[i]);
-        // }
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-
-
-
-
-
-        // Construir el contenido HTML de la página
-        html_content = build_html(PORT, names, filesCount);
-
-
-        // Construir la respuesta HTTP (código de estado 200 OK)
+        
+        
         char response[4098];
         sprintf(response, "HTTP/1.1 200 OK\r\n"
-                        "Content-Type: text/html\r\n"
+                        "Content-Type: text/html; charset=UTF-8\r\n"
                         "Content-Length: %ld\r\n\r\n"
                         "%s", strlen(html_content), html_content);
 
 
-
-        // Enviar la respuesta al cliente
-        ssize_t bytes_sent = send(client_socket, response, strlen(response), 0);
-
-        // Verificar si hubo un error en el envío
-        if (bytes_sent < 0)
-        {
-            fprintf(stderr, RED_COLOR "Error: send error\n" DEFAULT_COLOR);
-        }
-
+        send(client_socket, response, strlen(response), 0);
     }
+
 
     // Cerrar la conexión con el cliente
     close(client_socket);
 }
 
 
-char* parseHttpRequest(const char* httpRequest) {
-    const char* delimiter = "\n";
-    char* token;
-    char* value = NULL;
-    
-    
-    return value;
+void url_decode(char* str)
+{
+    char* p = str;
+    char hex[3] = {0};
+    while (*str)
+    {
+        if (*str == '%' && isxdigit((unsigned char)*(str + 1)) && isxdigit((unsigned char)*(str + 2)))
+        {
+            hex[0] = *(str + 1);
+            hex[1] = *(str + 2);
+            *p = strtol(hex, NULL, 16);
+            str += 2;
+        }
+        else if (*str == '+') *p = ' ';
+        else *p = *str;
+
+        str++;
+        p++;
+    }
+    *p = '\0';
 }
-
-
 
 void getNames(const char* root, char** names, int* numNames) {
     DIR* dir;
@@ -286,7 +314,6 @@ void getNames(const char* root, char** names, int* numNames) {
     closedir(dir);
 }
 
-
 char* build_html(int PORT, char** names, int filesCount)
 {
     char* response = malloc(4096);
@@ -297,32 +324,49 @@ char* build_html(int PORT, char** names, int filesCount)
             "<html>"
             "<head>"
                 "<style>"
-                   "table {"
-                       "width: 95\%;"
+                    "table {"
                         "border-collapse: collapse;"
-                        "border:1px solid black;"
-                        "margin-left:auto;"
-                        "margin-right:auto;"
+                        "width: 95%;"
+                        "font-family: Arial, sans-serif;"
+                        "border-radius: 8px;"
+                        "overflow: hidden;"
                     "}"
+
                     "th, td {"
                         "padding: 8px;"
                         "text-align: left;"
                         "border-bottom: 1px solid #ddd;"
                     "}"
-                    "tr:hover {"
-                        "background-color: #ffffff;"
-                    "}"
+
                     "th {"
-                        "background-color: #3f7bdb;"
-                        "color: rgb(255, 255, 255);"
+                        "background-color: #ababab;"
                     "}"
-                "</style></head>"
+
+                    "tr:nth-child(even) {"
+                        "background-color: #f9f9f9;"
+                   "}"
+
+                    "tr:hover {"
+                        "background-color: #eaeaea;"
+                        "cursor: pointer;"
+                    "}"
+
+                    "td:first-child {"
+                        "border-left: 1px solid #ddd;"
+                    "}"
+
+                    "td:last-child {"
+                        "border-right: 1px solid #ddd;"
+                    "}"
+                "</style>"
+
+            "</head>"
             "<body>"
-            "<h1>Explorer</h1>"
-            "<table>"
-                "<tr>"
-                    "<th>Nombre</th>"
-                "</tr>");
+                "<h1>Explorer</h1>"
+                "<table>"
+                    "<tr>"
+                        "<th>Nombre</th>"
+                    "</tr>");
 
     // ahora poner todos los <tr> dinamicamente
     for (int i = 0; i < filesCount; i++) {
@@ -333,52 +377,20 @@ char* build_html(int PORT, char** names, int filesCount)
         strcat(response, names[i]);
         strcat(response, "<td></tr>");
     }
-
     strcat(response, 
-            "</table>"
-            "<script>"
-                "function sendRequest(name) {"
-
-                    "var xhr = new XMLHttpRequest();"
-                    "xhr.open('POST', 'http://localhost:");
-    strcat(response, buff);
-    strcat(response, "', true);"
-                        "xhr.onreadystatechange = function() {"
-                        "if (xhr.readyState === 4 && xhr.status === 200)"
-                        "{"
-                        "    console.log('Solicitud enviada correctamente');"
-                        "    console.log(xhr.responseText);"
-                        "}"
-                        "else console.log('Error en la solicitud');"
-                    "};"
-                    "var data = 'name:' + encodeURIComponent(name) + '\\n';"
-                    // 🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
-                    // "var data = name.length.toString() + '\\n' + name + '\\n';"
-                    "xhr.send(data);"
-                "}"
-            "</script>"
+                "</table>"
+                "<script>"
+                    "function sendRequest(name) {"
+                        "var current = window.location.href;"
+                        "console.log(current);"
+                        "if(current[current.length-1] == '/')"
+                        "{ window.location.href = current + name; }"
+                        "else window.location.href = current + '/' + name;"
+                    "}"
+                "</script>"
             "</body>"
             "</html>");
 
     return response;
-}
-
-
-
-void print_matrix(char** matrix, int len)
-{
-    printf("~~~ Matrix: ~~~\n");
-    for (int i = 0; i < len; i++)
-    {
-        if(matrix[i] == NULL)
-        {
-            printf("NULL\n");
-        }
-        else
-        {
-            printf("%s\n", matrix[i]);
-        }
-    }
-    printf("~~~~ End ~~~~\n");
 }
 
