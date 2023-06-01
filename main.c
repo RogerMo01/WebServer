@@ -8,14 +8,16 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <ctype.h>
+#include <time.h>
 
 // Predefined functions
 void print_matrix(char** matrix, int len);
 void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT);
-char* build_html(int PORT, char** names, int filesCount);
+char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, int filesCount);
 void getNames(const char* root, char** names, int* numNames);
 char* parseHttpRequest(const char* httpRequest);
 void url_decode(char* str);
+void getProps(char** names, char** sizes, char** dates, char** types, char* ROOTt, int count);
 
 
 #define BUFFER_SIZE 1024
@@ -181,14 +183,23 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
                 int filesCount = 0;
                 struct dirent* ent;
                 while ((ent = readdir(dir)) != NULL) { if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) filesCount++; }
-                // Crear un array para almacenar los nombres
+                
+                // Obtener los nombres de los archivos y carpetas
                 char** names = (char**)malloc(filesCount * sizeof(char*));
                 if (names == NULL) { printf("Error: cannot assign memory\n"); exit(1); }
-                // Obtener los nombres de los archivos y carpetas
                 getNames(ROOT, names, &filesCount);
+                
 
+                // Obtener ahora el resto de propiedades
+                char** sizes = (char**)malloc(filesCount * sizeof(char*));
+                char** dates = (char**)malloc(filesCount * sizeof(char*));
+                char** types = (char**)malloc(filesCount * sizeof(char*));
+                if (dates == NULL || sizes == NULL || types == NULL) { printf("Error: cannot assign memory\n"); exit(1); }
+                getProps(names, sizes, dates, types, ROOT, filesCount);
+                
 
-                html_content = build_html(PORT, names, filesCount);
+                html_content = build_html(PORT, names, sizes, dates, types, filesCount);
+
             }
             else if (type == 2) // is File
             {
@@ -314,7 +325,71 @@ void getNames(const char* root, char** names, int* numNames) {
     closedir(dir);
 }
 
-char* build_html(int PORT, char** names, int filesCount)
+void getProps(char** names, char** sizes, char** dates, char** types, char* ROOT, int count)
+{
+    printf(RED_COLOR"Getting props ...\n"DEFAULT_COLOR);
+    printf("count = %d\n", count);
+
+    for (int i = 0; i < count; i++)
+    {
+        char tempRoot[128] = "";
+        strcat(tempRoot, ROOT);
+        strcat(tempRoot, "/");
+        strcat(tempRoot, names[i]);
+        printf("name: %s\n", names[i]);
+        printf("in root: %s\n", tempRoot);
+
+        
+        struct stat file_info;
+
+        if (stat(tempRoot, &file_info) == 0) 
+        {
+            printf(RED_COLOR"Entro al IF\n"DEFAULT_COLOR);
+            char tempBuff[50];
+            
+            // Tamaño del archivo en bytes
+            sprintf(tempBuff, "%ld", file_info.st_size);
+            strcat(tempBuff, " bytes");
+            sizes[i] = strdup(tempBuff); 
+            printf("sizes[%d]:%s\n", i, sizes[i]);
+            tempBuff[0] = '\0';
+            
+            // Fecha y hora de la última modificación
+            strftime(tempBuff, sizeof(tempBuff), "%Y-%m-%d %H:%M:%S", localtime(&file_info.st_mtime));
+            dates[i] = strdup(tempBuff); 
+            printf("dates[%d]:%s\n", i, dates[i]);
+
+
+
+            // Tipo de archivo
+            if (S_ISREG(file_info.st_mode)) {
+                printf("Tipo de archivo: File\n");
+                types[i] = strdup("File");
+            } else if (S_ISDIR(file_info.st_mode)) {
+                printf("Tipo de archivo: Directory\n");
+                types[i] = strdup("Directory");
+            } else if (S_ISLNK(file_info.st_mode)) {
+                types[i] = strdup("File");
+            } else if (S_ISFIFO(file_info.st_mode)) {
+                types[i] = strdup("File");
+            } else if (S_ISBLK(file_info.st_mode)) {
+                types[i] = strdup("File");
+            } else if (S_ISCHR(file_info.st_mode)) {
+                types[i] = strdup("File");
+            } else if (S_ISSOCK(file_info.st_mode)) {
+                types[i] = strdup("File");
+            } else {
+                printf("Tipo de archivo: Desconocido\n");
+                types[i] = strdup("Unknown");
+            }
+
+        }
+        else { dates[i] = "N/A"; sizes[i] = "N/A"; types[i] = "N/A"; }
+    }
+    
+}
+
+char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, int filesCount)
 {
     char* response = malloc(4096);
     char buff[4]; 
@@ -368,6 +443,17 @@ char* build_html(int PORT, char** names, int filesCount)
                     "td:last-child {"
                         "border-right: 1px solid #ddd;"
                     "}"
+
+                    ".icon-cell {"
+                        "width: 20px;"
+                    "}"
+                    
+                    ".icon-cell img {"
+                        "display: block;"
+                        "margin: auto;"
+                        "width: 16px;"
+                        "height: 16px;"
+                    "}"
                 "</style>"
 
             "</head>"
@@ -375,16 +461,25 @@ char* build_html(int PORT, char** names, int filesCount)
                 "<h1>Explorer</h1>"
                 "<table>"
                     "<tr>"
-                        "<th>Nombre</th>"
+                        "<th>Name</th>"
+                        "<th>Size</th>"
+                        "<th>Date Modified</th>"
+                        "<th>Type</th>"
                     "</tr>");
 
     // ahora poner todos los <tr> dinamicamente
     for (int i = 0; i < filesCount; i++) {
-        // printf("%s\n", names[i]);
+        
         strcat(response, "<tr onclick=\"sendRequest('");
         strcat(response, names[i]);
         strcat(response, "')\"><td>");
         strcat(response, names[i]);
+        strcat(response, "</td><td>");
+        strcat(response, sizes[i]);
+        strcat(response, "</td><td>");
+        strcat(response, dates[i]);
+        strcat(response, "</td><td>");
+        strcat(response, types[i]);
         strcat(response, "<td></tr>");
     }
     strcat(response, 
