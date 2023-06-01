@@ -36,9 +36,6 @@ int main(int argc, char *argv[])
     
     bool flag = (FLAG != NULL) && (strcmp(FLAG, "-s") == 0);
 
-    printf("flag = %d\n", flag);
-
-
     if(PORT == 0) { fprintf(stderr, RED_COLOR "Error: invalid Port\n" DEFAULT_COLOR); exit(1); }
     DIR* dir = opendir(argv[2]);
     if (dir == NULL) { fprintf(stderr, RED_COLOR "Error: invalid Directory Root\n" DEFAULT_COLOR); exit(1); }
