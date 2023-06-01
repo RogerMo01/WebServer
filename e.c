@@ -21,6 +21,9 @@ void url_decode(char* str);
 #define BUFFER_SIZE 1024
 #define RED_COLOR "\033[0;31m"
 #define DEFAULT_COLOR "\033[0m"
+#define BLUE_COLOR "\033[0;34m"
+#define YELLOW_COLOR "\033[0;33m"
+#define GREEN_COLOR "\033[0;32m"
 
 
 int main(int argc, char *argv[])
@@ -34,8 +37,8 @@ int main(int argc, char *argv[])
     closedir(dir);
 
     // printf("argc = %i\n", argc);
-    printf("Port = %i\n", PORT);
-    printf("Root = %s\n", ROOT);
+    printf(GREEN_COLOR"Port: %i\n"DEFAULT_COLOR, PORT);
+    printf(GREEN_COLOR"Root: %s\n"DEFAULT_COLOR, ROOT);
 
 
     int server_socket, client_socket;
@@ -70,8 +73,9 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    printf("WebServer is running...\n");
-
+    char host[25] = "http://localhost:";
+    strcat(host, argv[1]);
+    printf("WebServer is running on %s ...\n", host);
 
 
     while (1)
@@ -91,8 +95,11 @@ int main(int argc, char *argv[])
         if (fork() == 0)
         {
             close(server_socket);
+
+            // create copy of ROOT
             char ROOTcopy[128] = "";
             strcat(ROOTcopy, ROOT);
+
             handle_client(client_socket, ROOTcopy, PORT, ROOT);
             exit(0);
         }
@@ -103,9 +110,6 @@ int main(int argc, char *argv[])
     close(server_socket);
     return 0;
 }
-
-
-
 
 
 
@@ -120,14 +124,12 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
     {
         char* html_content = malloc(4096);
         
-        // Imprimir los datos de la solicitud en la consola
-        printf("Solicitud recibida:\n%s\n", buffer);
+        // Imprimir los datos de la solicitud
+        printf("Recived query:\n%s\n", buffer);
 
-
-        // Obtener el método HTTP (GET, POST, etc.)
+        // Obtener el método HTTP
         char method[10];
         sscanf(buffer, "%s", method);
-        printf("method = %s\n", method);
 
         // Obtener la ruta de la solicitud
         char path[BUFFER_SIZE];
@@ -136,105 +138,60 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
         // Decodificar la ruta de la solicitud
         url_decode(path);
 
-
-
-
-        printf("path = %s\n", path);
-        printf("la root es: %s\n", ROOT);
-
-
-
-        printf("ROOT[strlen(ROOT) - 1] = %c\n",ROOT[strlen(ROOT) - 1]);
+        // Si la ruta ya termina en '/' quitarlo
         if(ROOT[strlen(ROOT) - 1] == '/') ROOT[strlen(ROOT) - 1] = '\0';
-        printf("ROOT[strlen(ROOT) - 1] = %c\n",ROOT[strlen(ROOT) - 1]);
-
 
 
         if(strcmp(method, "GET") == 0 && strcmp(path, "/favicon.ico") != 0)
         {
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GET case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            
-            // Obtener los parámetros GET (si los hay)
-            char* query_string = strchr(path, '?');
-            if (query_string != NULL)
-            {
-                // Avanzar el puntero para omitir el signo de interrogación
-                query_string++;
 
-                // Procesar los pares clave-valor de los parámetros GET
-                char* token = strtok(query_string, "&");
-                while (token != NULL)
-                {
-                    // Dividir el parámetro en clave y valor
-                    char key[BUFFER_SIZE];
-                    char value[BUFFER_SIZE];
-                    sscanf(token, "%[^=]=%s", key, value);
-
-                    // Realizar la lógica deseada con los parámetros GET
-
-                    // Avanzar al siguiente parámetro
-                    token = strtok(NULL, "&");
-                }
-            }
-            printf("query_string = %s\n\n", query_string);
-
-
-
-            // Determinate if new path is a Folder or file ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            // Determinar si el path corresponde a una carpeta o un archivo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             char tempRoot[128] = "";
             strcat(tempRoot, baseROOT);
             strcat(tempRoot, path);
-
-            printf("Mientras ROOT = %s, tempRoot = %s, y path = %s\n", ROOT, tempRoot, path);
 
             // Folder = 1
             // File = 2
             int type = 0;
             DIR* dir = opendir(tempRoot);
             if(dir) {
-                printf(RED_COLOR"%s es una carpeta.\n"DEFAULT_COLOR, tempRoot);
+                printf(YELLOW_COLOR"%s es una carpeta.\n"DEFAULT_COLOR, tempRoot);
                 type = 1;
                 closedir(dir);
             } 
             else{
-                printf(RED_COLOR"%s es un archivo.\n"DEFAULT_COLOR, tempRoot);
+                printf(YELLOW_COLOR"%s es un archivo.\n"DEFAULT_COLOR, tempRoot);
                 type = 2;
             }
+            printf(BLUE_COLOR"CURRENT ROOT: %s\n"DEFAULT_COLOR, tempRoot);
             tempRoot[0] = '\0';
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
-            // if(is folder)
-            if(type == 1)
+            if(type == 1) // is Folder
             {
-                // concatenar path a ROOT
+                // concatenar path a baseROOT
                 ROOT[0] = '\0';
                 strcpy(ROOT, baseROOT);
                 strcat(ROOT, path);
-                printf("la NEW root es: %s\n", ROOT);
-
 
                 // Abrir el directorio y obtener el número de archivos y carpetas
                 DIR* dir = opendir(ROOT);
-                if (dir == NULL) { printf("No se pudo abrir el directorio %s\n", ROOT); exit(1); }
+                if (dir == NULL) { printf("Cannot open directory: %s\n", ROOT); exit(1); }
                 int filesCount = 0;
                 struct dirent* ent;
                 while ((ent = readdir(dir)) != NULL) { if (strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) filesCount++; }
                 // Crear un array para almacenar los nombres
                 char** names = (char**)malloc(filesCount * sizeof(char*));
-                if (names == NULL) { printf("Error al asignar memoria\n"); exit(1); }
+                if (names == NULL) { printf("Error: cannot assign memory\n"); exit(1); }
                 // Obtener los nombres de los archivos y carpetas
                 getNames(ROOT, names, &filesCount);
 
 
                 html_content = build_html(PORT, names, filesCount);
             }
-            else if (type == 2)//if(is File)
+            else if (type == 2) // is File
             {
-                // poner un '\0' en la posicion total - len del path
-                printf("Cuando es un file:\n");
-                printf("ROOT = %s, baseROOT = %s, y path = %s\n", ROOT, baseROOT, path);
-
                 // Construir la ruta completa del archivo
                 char file_path[128] = "";
                 strcpy(file_path, baseROOT);
@@ -281,7 +238,6 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
 
                     continue;
                 }
-
             }
         
         } 
@@ -320,20 +276,14 @@ void url_decode(char* str)
             *p = strtol(hex, NULL, 16);
             str += 2;
         }
-        else if (*str == '+')
-        {
-            *p = ' ';
-        }
-        else
-        {
-            *p = *str;
-        }
+        else if (*str == '+') *p = ' ';
+        else *p = *str;
+
         str++;
         p++;
     }
     *p = '\0';
 }
-
 
 void getNames(const char* root, char** names, int* numNames) {
     DIR* dir;
