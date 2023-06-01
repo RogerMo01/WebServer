@@ -21,6 +21,7 @@ void getProps(char** names, char** sizes, char** dates, char** types, char** roo
 long long getDirectorySize(const char* directory);
 
 #define BUFFER_SIZE 1024
+#define MAX_PATH 512
 #define RED_COLOR "\033[0;31m"
 #define DEFAULT_COLOR "\033[0m"
 #define BLUE_COLOR "\033[0;34m"
@@ -102,7 +103,7 @@ int main(int argc, char *argv[])
             close(server_socket);
 
             // create copy of ROOT
-            char ROOTcopy[128] = "";
+            char ROOTcopy[MAX_PATH] = "";
             strcat(ROOTcopy, ROOT);
 
             handle_client(client_socket, ROOTcopy, PORT, ROOT, flag);
@@ -152,7 +153,7 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT, bool
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ GET case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
             // Determinar si el path corresponde a una carpeta o un archivo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            char tempRoot[128] = "";
+            char tempRoot[] = "";
             strcat(tempRoot, baseROOT);
             strcat(tempRoot, path);
 
@@ -207,7 +208,7 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT, bool
             else if (type == 2) // is File
             {
                 // Construir la ruta completa del archivo
-                char file_path[128] = "";
+                char file_path[MAX_PATH] = "";
                 strcpy(file_path, baseROOT);
                 strcat(file_path, path);
 
@@ -333,7 +334,7 @@ void getProps(char** names, char** sizes, char** dates, char** types, char** roo
 {
     for (int i = 0; i < count; i++)
     {
-        char tempRoot[128] = "";
+        char tempRoot[MAX_PATH] = "";
         strcat(tempRoot, ROOT);
         strcat(tempRoot, "/");
         strcat(tempRoot, names[i]);
@@ -563,7 +564,7 @@ long long getDirectorySize(const char* directory) {
     long long totalSize = 0;
     struct dirent* entry;
     struct stat file_info;
-    char fileRoot[512];
+    char fileRoot[MAX_PATH];
 
     while ((entry = readdir(dir)) != NULL) {
         // Ignorar entradas de directorio "." y ".."
