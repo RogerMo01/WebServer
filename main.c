@@ -13,11 +13,11 @@
 
 // Predefined functions
 void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT, bool flag);
-char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, char** roots, int filesCount);
+char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, char** roots, char** permissions, int filesCount);
 void getNames(const char* root, char** names, int* numNames);
 char* parseHttpRequest(const char* httpRequest);
 void url_decode(char* str);
-void getProps(char** names, char** sizes, char** dates, char** types, char** roots, char* ROOTt, int count, bool flag);
+void getProps(char** names, char** sizes, char** dates, char** types, char** roots, char** permissions, char* ROOTt, int count, bool flag);
 long long getDirectorySize(const char* directory);
 
 #define BUFFER_SIZE 1024
@@ -130,7 +130,7 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT, bool
     ssize_t bytes_read;
     while ((bytes_read = recv(client_socket, buffer, BUFFER_SIZE, 0)) > 0)
     {
-        char* html_content = malloc(4096);
+        char* html_content = malloc(8000);
         
         // Imprimir los datos de la solicitud
         printf(DEFAULT_COLOR"Recived query:\n%s\n", buffer);
@@ -199,11 +199,12 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT, bool
                 char** dates = (char**)malloc(filesCount * sizeof(char*));
                 char** types = (char**)malloc(filesCount * sizeof(char*));
                 char** roots = (char**)malloc(filesCount * sizeof(char*));
-                if (dates == NULL || sizes == NULL || types == NULL) { printf("Error: cannot assign memory\n"); exit(1); }
-                getProps(names, sizes, dates, types, roots, ROOT, filesCount, flag);
+                char** permissions = (char**)malloc(filesCount * sizeof(char*));
+                if (dates == NULL || sizes == NULL || types == NULL || roots == NULL || permissions == NULL) { printf("Error: cannot assign memory\n"); exit(1); }
+                getProps(names, sizes, dates, types, roots, permissions, ROOT, filesCount, flag);
                 
 
-                html_content = build_html(PORT, names, sizes, dates, types, roots, filesCount);
+                html_content = build_html(PORT, names, sizes, dates, types, roots, permissions, filesCount);
 
             }
             else if (type == 2) // is File
@@ -331,7 +332,7 @@ void getNames(const char* root, char** names, int* numNames) {
     closedir(dir);
 }
 
-void getProps(char** names, char** sizes, char** dates, char** types, char** roots, char* ROOT, int count, bool flag)
+void getProps(char** names, char** sizes, char** dates, char** types, char** roots, char** permissions, char* ROOT, int count, bool flag)
 {
     for (int i = 0; i < count; i++)
     {
@@ -346,20 +347,32 @@ void getProps(char** names, char** sizes, char** dates, char** types, char** roo
         {
             char tempBuff[50];
             
-            // Tamaño del archivo en bytes
+            // Tamaño ~~~~~~~~~~~
             sprintf(tempBuff, "%ld", file_info.st_size);
             strcat(tempBuff, " bytes");
             sizes[i] = strdup(tempBuff); 
             tempBuff[0] = '\0';
             
-            // Fecha y hora de la última modificación
+            // Fecha y hora de la última modificación ~~~~~~~~~~~~~
             strftime(tempBuff, sizeof(tempBuff), "%Y-%m-%d %H:%M:%S", localtime(&file_info.st_mtime));
-            dates[i] = strdup(tempBuff); 
+            dates[i] = strdup(tempBuff);
+            tempBuff[0] = '\0';
 
-            // Ruta actual
+            // Permisos ~~~~~~~~~~~~~~~
+            // strcat(tempBuff, " ");
+            if(file_info.st_mode & S_IRUSR)
+            { strcat(tempBuff, " -R"); }
+            if(file_info.st_mode & S_IWUSR)
+            { strcat(tempBuff, "-W"); }
+            if(file_info.st_mode & S_IXUSR)
+            { strcat(tempBuff, "-X"); }
+            permissions[i] = strdup(tempBuff);
+            tempBuff[0] = '\0';
+
+            // Ruta actual ~~~~~~~~~~~~~~~~~
             roots[i] = strdup(tempRoot);
 
-            // Tipo de archivo
+            // Tipo de archivo ~~~~~~~~~~~~~~~~~
             if (S_ISREG(file_info.st_mode)) {
                 types[i] = strdup("File");
             } else if (S_ISDIR(file_info.st_mode)) {
@@ -387,16 +400,15 @@ void getProps(char** names, char** sizes, char** dates, char** types, char** roo
             } else {
                 types[i] = strdup("Unknown");
             }
-
         }
-        else { dates[i] = "N/A"; sizes[i] = "N/A"; types[i] = "N/A"; }
+        else { dates[i] = "N/A"; sizes[i] = "N/A"; types[i] = "N/A"; permissions[i] = "N/A"; }
     }
     
 }
 
-char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, char** roots, int filesCount)
+char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, char** roots, char** permissions, int filesCount)
 {
-    char* response = malloc(8000);
+    char* response = malloc(10000);
     char buff[4]; 
     sprintf(buff, "%d", PORT);
 
@@ -494,6 +506,7 @@ char* build_html(int PORT, char** names, char** sizes, char** dates, char** type
                         "<th>Size</th>"
                         "<th>Date Modified</th>"
                         "<th>Type</th>"
+                        "<th>Permissions</th>"
                     "</tr>");
 
     // ahora poner todos los <tr> dinamicamente
@@ -522,7 +535,9 @@ char* build_html(int PORT, char** names, char** sizes, char** dates, char** type
         strcat(response, dates[i]);
         strcat(response, "</td><td>");
         strcat(response, types[i]);
-        strcat(response, "<td></tr>");
+        strcat(response, "</td><td>");
+        strcat(response, permissions[i]);
+        strcat(response, "</td></tr>");
     }
     strcat(response, 
                 "</table></div>"
