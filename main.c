@@ -11,14 +11,13 @@
 #include <time.h>
 
 // Predefined functions
-void print_matrix(char** matrix, int len);
 void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT);
-char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, int filesCount);
+char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, char** roots, int filesCount);
 void getNames(const char* root, char** names, int* numNames);
 char* parseHttpRequest(const char* httpRequest);
 void url_decode(char* str);
-void getProps(char** names, char** sizes, char** dates, char** types, char* ROOTt, int count);
-
+void getProps(char** names, char** sizes, char** dates, char** types, char** roots, char* ROOTt, int count);
+long long getDirectorySize(const char* directory);
 
 #define BUFFER_SIZE 1024
 #define RED_COLOR "\033[0;31m"
@@ -194,11 +193,12 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT)
                 char** sizes = (char**)malloc(filesCount * sizeof(char*));
                 char** dates = (char**)malloc(filesCount * sizeof(char*));
                 char** types = (char**)malloc(filesCount * sizeof(char*));
+                char** roots = (char**)malloc(filesCount * sizeof(char*));
                 if (dates == NULL || sizes == NULL || types == NULL) { printf("Error: cannot assign memory\n"); exit(1); }
-                getProps(names, sizes, dates, types, ROOT, filesCount);
+                getProps(names, sizes, dates, types, roots, ROOT, filesCount);
                 
 
-                html_content = build_html(PORT, names, sizes, dates, types, filesCount);
+                html_content = build_html(PORT, names, sizes, dates, types, roots, filesCount);
 
             }
             else if (type == 2) // is File
@@ -325,7 +325,7 @@ void getNames(const char* root, char** names, int* numNames) {
     closedir(dir);
 }
 
-void getProps(char** names, char** sizes, char** dates, char** types, char* ROOT, int count)
+void getProps(char** names, char** sizes, char** dates, char** types, char** roots, char* ROOT, int count)
 {
     printf(RED_COLOR"Getting props ...\n"DEFAULT_COLOR);
     printf("count = %d\n", count);
@@ -359,15 +359,25 @@ void getProps(char** names, char** sizes, char** dates, char** types, char* ROOT
             dates[i] = strdup(tempBuff); 
             printf("dates[%d]:%s\n", i, dates[i]);
 
-
+            // Ruta actual
+            roots[i] = strdup(tempRoot);
 
             // Tipo de archivo
             if (S_ISREG(file_info.st_mode)) {
-                printf("Tipo de archivo: File\n");
                 types[i] = strdup("File");
             } else if (S_ISDIR(file_info.st_mode)) {
-                printf("Tipo de archivo: Directory\n");
                 types[i] = strdup("Directory");
+                
+                long long totalSize = getDirectorySize(tempRoot);
+
+
+                sprintf(tempBuff, "%lld", totalSize);
+                strcat(tempBuff, " bytes");
+                sizes[i] = strdup(tempBuff); 
+                printf("sizes[%d]:%s\n", i, sizes[i]);
+                tempBuff[0] = '\0';
+                
+
             } else if (S_ISLNK(file_info.st_mode)) {
                 types[i] = strdup("File");
             } else if (S_ISFIFO(file_info.st_mode)) {
@@ -389,7 +399,7 @@ void getProps(char** names, char** sizes, char** dates, char** types, char* ROOT
     
 }
 
-char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, int filesCount)
+char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, char** roots, int filesCount)
 {
     char* response = malloc(4096);
     char buff[4]; 
@@ -438,6 +448,7 @@ char* build_html(int PORT, char** names, char** sizes, char** dates, char** type
 
                     "td:first-child {"
                         "border-left: 1px solid #ddd;"
+                        "font-size: 25px;"
                     "}"
 
                     "td:last-child {"
@@ -447,13 +458,6 @@ char* build_html(int PORT, char** names, char** sizes, char** dates, char** type
                     ".icon-cell {"
                         "width: 20px;"
                     "}"
-                    
-                    ".icon-cell img {"
-                        "display: block;"
-                        "margin: auto;"
-                        "width: 16px;"
-                        "height: 16px;"
-                    "}"
                 "</style>"
 
             "</head>"
@@ -461,6 +465,7 @@ char* build_html(int PORT, char** names, char** sizes, char** dates, char** type
                 "<h1>Explorer</h1>"
                 "<table>"
                     "<tr>"
+                        "<th></th>"
                         "<th>Name</th>"
                         "<th>Size</th>"
                         "<th>Date Modified</th>"
@@ -473,6 +478,19 @@ char* build_html(int PORT, char** names, char** sizes, char** dates, char** type
         strcat(response, "<tr onclick=\"sendRequest('");
         strcat(response, names[i]);
         strcat(response, "')\"><td>");
+        if(strcmp(types[i], "Directory") == 0)
+        {
+            strcat(response, "📁");
+        }
+        else if(strcmp(types[i], "File") == 0)
+        {
+            strcat(response, "📄");
+        }
+        else 
+        {
+            strcat(response, "❔");
+        }
+        strcat(response, "</td><td>");
         strcat(response, names[i]);
         strcat(response, "</td><td>");
         strcat(response, sizes[i]);
@@ -497,5 +515,36 @@ char* build_html(int PORT, char** names, char** sizes, char** dates, char** type
             "</html>");
 
     return response;
+}
+
+long long getDirectorySize(const char* directory) {
+    DIR* dir = opendir(directory);
+    if (dir == NULL) {
+        printf(RED_COLOR"Error: cannot open directory.\n"DEFAULT_COLOR);
+        return -1;
+    }
+
+    long long totalSize = 0;
+    struct dirent* entry;
+    struct stat file_info;
+    char fileRoot[512];
+
+    while ((entry = readdir(dir)) != NULL) {
+        // Ignorar entradas de directorio "." y ".."
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        snprintf(fileRoot, sizeof(fileRoot), "%s/%s", directory, entry->d_name);
+        
+        if (stat(fileRoot, &file_info) == 0) {
+            if (S_ISREG(file_info.st_mode)) {
+                totalSize += file_info.st_size;
+            }
+        }
+    }
+
+    closedir(dir);
+    return totalSize;
 }
 
