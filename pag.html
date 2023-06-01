@@ -1,55 +1,174 @@
-<!DOCTYPE html>
 <html>
 <head>
     <style>
+        /* Estilo del encabezado */
+        h1 {
+            color: #444;
+            font-size: 48px;
+            font-family: "Arial", sans-serif;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            margin-top: 30px;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+        .navbar {
+            background-color: #333;
+            border-radius: 5px;
+            padding: 10px;
+            display: flex;
+            justify-content: left;
+        }
+
+        .navbar a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 10px;
+            font-size: 16px;
+        }
+
+        .navbar a:hover {
+            text-decoration: underline;
+        }
+
+        /* Estilo de la tabla */
         table {
             border-collapse: collapse;
-            width: 100%;
+            width: 95%;
+            margin: 0 auto;
+            font-family: Arial, sans-serif;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
         }
-        
+
         th, td {
-            padding: 8px;
+            padding: 12px;
             text-align: left;
             border-bottom: 1px solid #ddd;
         }
-        
+
+        tr {
+            transition: background-color 0.3s ease;
+        }
+
+
         th {
-            background-color: #f2f2f2;
+            background-color: #ababab;
+            color: #fff;
         }
-        
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #eaeaea;
+            cursor: pointer;
+        }
+
+        td:first-child {
+            border-left: 1px solid #ddd;
+            font-size: 20px;
+        }
+
+        td:last-child {
+            border-right: 1px solid #ddd;
+        }
+
+        /* Estilo de los íconos */
         .icon-cell {
-            width: 20px;
+            width: 24px;
+            font-size: 20px;
+            text-align: left;
         }
-        
-        .icon-cell img {
-            display: block;
-            margin: auto;
-            width: 16px;
-            height: 16px;
+
+        /* Estilo de las celdas de texto */
+        .text-cell {
+            font-size: 16px;
+            color: #333;
         }
+
+        /* Estilo del cuerpo de la página */
+        body {
+            background-color: #f1f1f1;
+        }
+
+        /* Estilo del contenedor principal */
+        .container {
+            animation: fade-in 0.5s ease;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            margin-top: 30px;
+            background-image: linear-gradient(to bottom, #f9f9f9, #e1e1e1);
+        }
+
+        @keyframes fade-in {
+            0% {
+                opacity: 0;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+
     </style>
 </head>
 <body>
-    <table>
-        <tr>
-            <th class="icon-cell"></th>
-            <th>Nombre</th>
-            <th>Apellido</th>
-            <th>Edad</th>
-        </tr>
-        <tr>
-            <td class="icon-cell"><img src="icons/bx-file.svg" alt="Icono 1"></td>
-            <td>John</td>
-            <td>Doe</td>
-            <td>25</td>
-        </tr>
-        <tr>
-            <td class="icon-cell"><img src="icono2.png" alt="Icono 2"></td>
-            <td>Jane</td>
-            <td>Smith</td>
-            <td>30</td>
-        </tr>
-        <!-- Agrega más filas si es necesario -->
-    </table>
+    <div class="container">
+        <h1>Explorer</h1>
+        
+        <table>
+            <tr>
+                <th></th>
+                <th>Name</th>
+                <th>Size</th>
+                <th>Date Modified</th>
+                <th>Type</th>
+            </tr>
+            <tr onclick="sendRequest('John Wick')">
+                <td class="icon-cell">📄</td>
+                <td class="text-cell">John Wick</td>
+                <td class="text-cell">30 kb</td>
+                <td class="text-cell">30/10/21</td>
+                <td class="text-cell">File</td>
+            </tr>
+            <tr onclick="sendRequest('Anna Wick')">
+                <td class="icon-cell">📄</td>
+                <td class="text-cell">Anna Wick</td>
+                <td class="text-cell">500 kb</td>
+                <td class="text-cell">31/1/19</td>
+                <td class="text-cell">File</td>
+            </tr>
+            <tr onclick="sendRequest('New Folder')">
+                <td class="icon-cell">📂</td>
+                <td class="text-cell">New Folder</td>
+                <td class="text-cell">512 bytes</td>
+                <td class="text-cell">2/8/01</td>
+                <td class="text-cell">Folder</td>
+            </tr>
+        </table>
+    </div>
+
+    <script>
+        function sendRequest(name) {
+            var current = window.location.href;
+            console.log(current);
+            if (current[current.length - 1] === '/') {
+                window.location.href = current + name;
+            } else {
+                window.location.href = current + '/' + name;
+            }
+        }
+    </script>
 </body>
 </html>

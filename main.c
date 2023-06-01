@@ -133,7 +133,7 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT, bool
         char* html_content = malloc(4096);
         
         // Imprimir los datos de la solicitud
-        printf("Recived query:\n%s\n", buffer);
+        printf(DEFAULT_COLOR"Recived query:\n%s\n", buffer);
 
         // Obtener el método HTTP
         char method[10];
@@ -412,51 +412,80 @@ char* build_html(int PORT, char** names, char** sizes, char** dates, char** type
                         "text-transform: uppercase;"
                         "letter-spacing: 2px;"
                         "text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);"
+                        "margin-top: 30px;"
                     "}"
-      
+                    "html {"
+                        "scroll-behavior: smooth;"
+                    "}"
                     "table {"
                         "border-collapse: collapse;"
                         "width: 95%;"
                         "font-family: Arial, sans-serif;"
                         "border-radius: 8px;"
                         "overflow: hidden;"
+                        "box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);"
+                        "margin-top: 30px;"
                     "}"
-
                     "th, td {"
                         "padding: 8px;"
                         "text-align: left;"
                         "border-bottom: 1px solid #ddd;"
                     "}"
-
+                    "tr {"
+                        "transition: background-color 0.3s ease;"
+                    "}"
                     "th {"
                         "background-color: #ababab;"
+                        "color: #fff;"
                     "}"
-
                     "tr:nth-child(even) {"
                         "background-color: #f9f9f9;"
                    "}"
-
                     "tr:hover {"
                         "background-color: #eaeaea;"
                         "cursor: pointer;"
                     "}"
-
                     "td:first-child {"
                         "border-left: 1px solid #ddd;"
                         "font-size: 25px;"
                     "}"
-
                     "td:last-child {"
                         "border-right: 1px solid #ddd;"
                     "}"
-
                     ".icon-cell {"
                         "width: 20px;"
+                        "font-size: 20px;"
+                        "text-align: left;"
+                    "}"
+                    ".text-cell {"
+                        "font-size: 16px;"
+                        "color: #333;"
+                    "}"
+                    "body {"
+                        "background-color: #f1f1f1;"
+                    "}"
+                    ".container {"
+                        "animation: fade-in 0.5s ease;"
+                        "max-width: 800px;"
+                        "margin: 0 auto;"
+                        "padding: 20px;"
+                        "background-color: #fff;"
+                        "border-radius: 8px;"
+                        "box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);"
+                        "margin-top: 30px;"
+                        "background-image: linear-gradient(to bottom, #f9f9f9, #e1e1e1);"
+                    "}"
+                    "@keyframes fade-in {"
+                        "0% {"
+                            "opacity: 0;"
+                        "}"
+                        "100% {"
+                            "opacity: 1;"
+                        "}"
                     "}"
                 "</style>"
-
             "</head>"
-            "<body>"
+            "<body><div class=\"container\">"
                 "<h1>Explorer</h1>"
                 "<table>"
                     "<tr>"
@@ -475,7 +504,7 @@ char* build_html(int PORT, char** names, char** sizes, char** dates, char** type
         strcat(response, "')\"><td>");
         if(strcmp(types[i], "Directory") == 0)
         {
-            strcat(response, "📁");
+            strcat(response, "📂");
         }
         else if(strcmp(types[i], "File") == 0)
         {
@@ -496,7 +525,7 @@ char* build_html(int PORT, char** names, char** sizes, char** dates, char** type
         strcat(response, "<td></tr>");
     }
     strcat(response, 
-                "</table>"
+                "</table></div>"
                 "<script>"
                     "function sendRequest(name) {"
                         "var current = window.location.href;"
