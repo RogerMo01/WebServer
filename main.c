@@ -263,7 +263,7 @@ void handle_client(int client_socket, char* ROOT, int PORT, char* baseROOT, bool
         
         
         
-        char response[8194];
+        char response[12000];
         sprintf(response, "HTTP/1.1 200 OK\r\n"
                         "Content-Type: text/html; charset=UTF-8\r\n"
                         "Content-Length: %ld\r\n\r\n"
@@ -406,7 +406,7 @@ void getProps(char** names, char** sizes, char** dates, char** types, char** roo
 
 char* build_html(int PORT, char** names, char** sizes, char** dates, char** types, char** roots, char** permissions, int filesCount)
 {
-    char* response = malloc(10000);
+    char* response = malloc(12000);
     char buff[4]; 
     sprintf(buff, "%d", PORT);
 
@@ -504,7 +504,7 @@ char* build_html(int PORT, char** names, char** sizes, char** dates, char** type
                 "</style>"
             "</head>"
             "<body><div class=\"container\">"
-                "<h1>WebServer</h1>"
+                "<h1>Web-Server</h1>"
                 
                 "<table id=\"myTable\">"
                     "<tr>"
