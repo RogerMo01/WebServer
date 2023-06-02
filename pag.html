@@ -126,8 +126,13 @@
 <body>
     <div class="container">
         <h1>Explorer</h1>
+
+        <button onclick="sortTableByName()">Name Sort</button>
+        <button onclick="sortTableByDate()">Date Sort</button>
+        <button onclick="sortTableBySize()">Bytes Sort</button>
+        <button onclick="sortTableByType()">Type Sort</button>
         
-        <table>
+        <table id="miTabla">
             <tr>
                 <th></th>
                 <th>Name</th>
@@ -139,21 +144,21 @@
                 <td class="icon-cell">📄</td>
                 <td class="text-cell">John Wick</td>
                 <td class="text-cell">30 kb</td>
-                <td class="text-cell">30/10/21</td>
+                <td class="text-cell">2022-07-08 20:16:00</td>
                 <td class="text-cell">File</td>
             </tr>
             <tr onclick="sendRequest('Anna Wick')">
                 <td class="icon-cell">📄</td>
                 <td class="text-cell">Anna Wick</td>
-                <td class="text-cell">500 kb</td>
-                <td class="text-cell">31/1/19</td>
+                <td class="text-cell">530 kb</td>
+                <td class="text-cell">2022-07-03 20:16:00</td>
                 <td class="text-cell">File</td>
             </tr>
             <tr onclick="sendRequest('New Folder')">
                 <td class="icon-cell">📂</td>
                 <td class="text-cell">New Folder</td>
-                <td class="text-cell">512 bytes</td>
-                <td class="text-cell">2/8/01</td>
+                <td class="text-cell">502 bytes</td>
+                <td class="text-cell">2019-05-13 20:16:00</td>
                 <td class="text-cell">Folder</td>
             </tr>
         </table>
@@ -169,6 +174,94 @@
                 window.location.href = current + '/' + name;
             }
         }
+    </script>
+    <script>
+        function sortTableByDate() {
+            var table = document.getElementById("miTabla");
+            var rows = table.rows;
+            var arr = [];
+
+            for (var i = 1; i < rows.length; i++) {
+                var cell = rows[i].cells[3]; // Fecha en la columna i=3
+                var date = new Date(cell.innerText);
+                arr.push({ date: date, row: rows[i] });
+            }
+
+            arr.sort(function (a, b) {
+                return a.date - b.date;
+            });
+
+            for (var i = 0; i < arr.length; i++) {
+                table.appendChild(arr[i].row);
+            }
+        }
+
+        function sortTableBySize() {
+            var table = document.getElementById("miTabla");
+            var rows = table.rows;
+            var arr = [];
+
+            for (var i = 1; i < rows.length; i++) {
+                var cell = rows[i].cells[2]; // Size en la columna i=2
+                
+                var size = parseFloat(cell.innerText);
+                arr.push({ size: size, row: rows[i] });
+            }
+
+            arr.sort(function (a, b) {
+                return a.size - b.size;
+            });
+
+            for (var i = 0; i < arr.length; i++) {
+                table.appendChild(arr[i].row);
+            }
+        }
+
+        function sortTableByName() {
+            var table = document.getElementById("miTabla");
+            var rows = table.rows;
+            var arr = [];
+
+            for (var i = 1; i < rows.length; i++) {
+                var cell = rows[i].cells[1]; // Name en la columna i=1
+                var name = cell.innerText;
+                arr.push({ name: name, row: rows[i] });
+            }
+
+            arr.sort(function (a, b) {
+                return a.name.localeCompare(b.name);
+            });
+
+            for (var i = 0; i < arr.length; i++) {
+                table.appendChild(arr[i].row);
+            }
+        }
+
+        function sortTableByType() {
+            var table = document.getElementById("miTabla");
+            var rows = table.rows;
+            var arr = [];
+
+            for (var i = 1; i < rows.length; i++) {
+                var cell = rows[i].cells[4]; // Type en la columna i=4
+                var type = cell.innerText;
+                arr.push({ type: type, row: rows[i] });
+            }
+
+            arr.sort(function (a, b) {
+                var order = ["Folder", "File", "Unknown"];
+                return order.indexOf(a.type) - order.indexOf(b.type);
+            });
+
+            for (var i = 0; i < arr.length; i++) {
+                table.appendChild(arr[i].row);
+            }
+        }
+
+
+
+
+
     </script>
 </body>
 </html>
