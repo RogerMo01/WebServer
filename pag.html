@@ -121,24 +121,29 @@
             }
         }
 
+        .highlight {
+            background-color: #5d5d5d;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #spanN, #spanS, #spanD, #spanT {
+            float: right;
+        }
+
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Explorer</h1>
-
-        <button onclick="sortTableByName()">Name Sort</button>
-        <button onclick="sortTableByDate()">Date Sort</button>
-        <button onclick="sortTableBySize()">Bytes Sort</button>
-        <button onclick="sortTableByType()">Type Sort</button>
         
         <table id="miTabla">
             <tr>
                 <th></th>
-                <th>Name</th>
-                <th>Size</th>
-                <th>Date Modified</th>
-                <th>Type</th>
+                <th onmouseover="highlightCell(this)" onmouseout="unhighlightCell(this)" onclick="sortTable('name')">Name <span  id="spanN">△</span></th>
+                <th onmouseover="highlightCell(this)" onmouseout="unhighlightCell(this)" onclick="sortTable('size')">Size <span id="spanS">△</span></th>
+                <th onmouseover="highlightCell(this)" onmouseout="unhighlightCell(this)" onclick="sortTable('date')">Date Modified <span id="spanD">△</span></th>
+                <th onmouseover="highlightCell(this)" onmouseout="unhighlightCell(this)" onclick="sortTable('type')">Type <span id="spanT">△</span></th>
             </tr>
             <tr onclick="sendRequest('John Wick')">
                 <td class="icon-cell">📄</td>
@@ -174,9 +179,53 @@
                 window.location.href = current + '/' + name;
             }
         }
-    </script>
-    <script>
-        function sortTableByDate() {
+
+        var last = "";
+        var lastSense = "up";
+
+        function sortTable(criteria){
+
+            var arrow = '▲';
+            var sense = 'up';
+
+            if(last == criteria) { 
+                if(lastSense == 'up') {
+                    sense = 'down';
+                    arrow = '▼'; 
+                } else {
+                    sense = 'up';
+                    arrow = '▲';
+                }
+            }
+
+            // selected: ▲
+            // no selected: △
+            // ▼
+            var spanName = document.getElementById('spanN');
+            var spanSize = document.getElementById('spanS');
+            var spanDate = document.getElementById('spanD');
+            var spanType = document.getElementById('spanT');
+            
+            
+            if(criteria == "name") { sortTableByName(sense); spanName.innerText = arrow; spanSize.innerText = '△'; spanDate.innerText = '△'; spanType.innerText = '△'; }
+            else if(criteria == "size") { sortTableBySize(sense); spanName.innerText = '△'; spanSize.innerText = arrow; spanDate.innerText = '△'; spanType.innerText = '△'; }
+            else if(criteria == "date") { sortTableByDate(sense); spanName.innerText = '△'; spanSize.innerText = '△'; spanDate.innerText = arrow; spanType.innerText = '△'; }
+            else if(criteria == "type") { sortTableByType(sense); spanName.innerText = '△'; spanSize.innerText = '△'; spanDate.innerText = '△'; spanType.innerText = arrow; }
+            
+            
+            last = criteria;
+            lastSense = sense;
+        }
+        document.addEventListener("DOMContentLoaded", function() {
+            sortTable('type');
+        });
+        function highlightCell(cell) {
+            cell.classList.add('highlight');
+        }
+        function unhighlightCell(cell) {
+            cell.classList.remove('highlight');
+        }
+        function sortTableByDate(sense) {
             var table = document.getElementById("miTabla");
             var rows = table.rows;
             var arr = [];
@@ -188,7 +237,11 @@
             }
 
             arr.sort(function (a, b) {
-                return a.date - b.date;
+                if(sense == 'up') {
+                    return a.date - b.date;
+                } else {
+                    return b.date - a.date;
+                }
             });
 
             for (var i = 0; i < arr.length; i++) {
@@ -196,7 +249,8 @@
             }
         }
 
-        function sortTableBySize() {
+        function sortTableBySize(sense) {
+            console.log('ordenar por size con sense = ' + sense);
             var table = document.getElementById("miTabla");
             var rows = table.rows;
             var arr = [];
@@ -209,7 +263,11 @@
             }
 
             arr.sort(function (a, b) {
-                return a.size - b.size;
+                if(sense == 'up') {
+                    return a.size - b.size;
+                } else {
+                    return b.size - a.size;
+                }
             });
 
             for (var i = 0; i < arr.length; i++) {
@@ -217,7 +275,7 @@
             }
         }
 
-        function sortTableByName() {
+        function sortTableByName(sense) {
             var table = document.getElementById("miTabla");
             var rows = table.rows;
             var arr = [];
@@ -229,7 +287,11 @@
             }
 
             arr.sort(function (a, b) {
-                return a.name.localeCompare(b.name);
+                if(sense == 'up') {
+                    return a.name.localeCompare(b.name);
+                } else {
+                    return b.name.localeCompare(a.name);
+                }
             });
 
             for (var i = 0; i < arr.length; i++) {
@@ -237,7 +299,7 @@
             }
         }
 
-        function sortTableByType() {
+        function sortTableByType(sense) {
             var table = document.getElementById("miTabla");
             var rows = table.rows;
             var arr = [];
@@ -249,7 +311,12 @@
             }
 
             arr.sort(function (a, b) {
-                var order = ["Folder", "File", "Unknown"];
+                var order;
+                if(sense == 'up') {
+                    order = ["Folder", "File", "Unknown"];
+                } else {
+                    order = ["Unknown", "File", "Folder"];
+                }
                 return order.indexOf(a.type) - order.indexOf(b.type);
             });
 
