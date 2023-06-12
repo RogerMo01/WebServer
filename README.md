@@ -26,3 +26,5 @@ De manera opcional se puede ejecutar el comando:
 donde el flag `-s` indica que se desea saber exactamente el tamaño de cada directorio
 (Opcional porque lo que hace es recursividad por los directorios calculando el tamaño de sus archivos, por tanto en directorios como C:\, la recursividad se hace tardía)
 
+
+Tras ejecutar el proyecto se mostrará en la terminal un enlace para la visualización del contenido.
